@@ -128,4 +128,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n[INFO] Graceful server shutdown initiated. Releasing socket...")
     finally:
-        server_sock.close(
+        server_sock.close()

@@ -37,12 +37,13 @@ def logger_service(lock, message):
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
             f.write(f"[{timestamp}] {message}\n")
 
-def client_handler(conn, addr, msg_queue, lock):
-    """Subproceso dedicado a la recepción de datos de un cliente específico."""
+def client_handler(conn, addr, msg_queue, lock, client_list):
+    """Subproceso con rutina de limpieza garantizada."""
+    user_alias = "Unknown"
     try:
-        # Identificación inicial (Alias)
+        # Identification
         user_alias = conn.recv(1024).decode('utf-8')
-        join_msg = f"SYSTEM: {user_alias} se ha unido desde {addr}"
+        join_msg = f"SYSTEM: {user_alias} joined from {addr}"
         msg_queue.put(join_msg)
         logger_service(lock, join_msg)
 
@@ -54,23 +55,31 @@ def client_handler(conn, addr, msg_queue, lock):
             full_msg = f"{user_alias}: {data}"
             msg_queue.put(full_msg)
             logger_service(lock, full_msg)
-    except Exception as e:
-        print(f" Error en cliente {addr}: {e}")
+            
+    except (ConnectionResetError, BrokenPipeError):
+        print(f" Connection lost abruptly with {user_alias}")
     finally:
+        # Action: Remove from shared list before notifying others
+        if conn in client_list:
+            client_list.remove(conn)
+        
         exit_msg = f"SYSTEM: {user_alias} has left the chat."
         msg_queue.put(exit_msg)
         logger_service(lock, exit_msg)
         conn.close()
 
 def broadcaster(msg_queue, client_list):
-    """Proceso independiente que difunde mensajes a todos los sockets activos."""
+    """Proceso de difusión con tolerancia a fallos por socket."""
     while True:
-        msg = msg_queue.get() # Bloquea hasta que haya un mensaje
-        for client_conn in client_list:
+        msg = msg_queue.get()
+        # Iterar sobre una copia para evitar errores de mutación durante el envío
+        for client_conn in list(client_list):
             try:
-                client_conn.send(f"\n{msg}\n> ".encode('utf-8'))
-            except:
-                client_list.remove(client_conn)
+                client_conn.send(f"\r{msg}\n> ".encode('utf-8'))
+            except (BrokenPipeError, OSError):
+                # Action: Purge stale socket if it's still in the list
+                if client_conn in client_list:
+                    client_list.remove(client_conn)
 
 if __name__ == "__main__":
     # Inicialización de recursos IPC

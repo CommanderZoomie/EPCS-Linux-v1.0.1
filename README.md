@@ -8,9 +8,14 @@
 
 1. Overview / Descripción:
 
-   -Problem: The Python Global Interpreter Lock (GIL) prevents true parallelism in multithreaded applications, causing performance bottlenecks in real-time communication systems. Solution: EPCS-Linux-v1.0.1 utilizes the multiprocessing library and the native Linux fork start method to achieve process-level parallelism. By assigning each client connection to an independent CPU core, the system ensures zero-blocking I/O and sub-millisecond broadcast latency.
+   -Problem: The Python Global Interpreter Lock (GIL) prevents true parallelism in multithreaded applications, causing performance bottlenecks in real-time communication systems.
+   
+   -Solution: EPCS-Linux-v1.0.1 utilizes the multiprocessing library and the native Linux fork start method to achieve process-level parallelism. By assigning each client connection to an independent CPU core, the system ensures zero-blocking I/O and sub-millisecond broadcast latency.
 
-   -Problema: El Global Interpreter Lock (GIL) de Python impide el paralelismo real en aplicaciones multihilo, causando cuellos de botella en sistemas de comunicación en tiempo real. Solución: EPCS-Linux-v1.0.1 utiliza la librería multiprocessing y el método nativo fork de Linux para lograr paralelismo a nivel de procesos. Al asignar cada conexión de cliente a un núcleo de CPU independiente, el sistema garantiza I/O sin bloqueos y una latencia de difusión mínima.
+
+   -Problema: El Global Interpreter Lock (GIL) de Python impide el paralelismo real en aplicaciones multihilo, causando cuellos de botella en sistemas de comunicación en tiempo real.
+   
+   -Solución: EPCS-Linux-v1.0.1 utiliza la librería multiprocessing y el método nativo fork de Linux para lograr paralelismo a nivel de procesos. Al asignar cada conexión de cliente a un núcleo de CPU independiente, el sistema garantiza I/O sin bloqueos y una latencia de difusión mínima.
 
 
 ///

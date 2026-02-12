@@ -1,0 +1,80 @@
+import multiprocessing as mp
+import socket
+import sys
+import time
+
+# Configuración de entorno Linux
+if sys.platform!= 'linux':
+    print(" Este sistema requiere el método 'fork' nativo de Linux.")
+    sys.exit(1)
+
+LOG_FILE = "chat_log.txt"
+PORT = 5000
+
+def logger_service(lock, message):
+    """Escribe en el log de forma atómica usando un Lock primitive."""
+    with lock:
+        with open(LOG_FILE, "a") as f:
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] {message}\n")
+
+def client_handler(conn, addr, msg_queue, lock):
+    """Subproceso dedicado a la recepción de datos de un cliente específico."""
+    try:
+        # Identificación inicial (Alias)
+        user_alias = conn.recv(1024).decode('utf-8')
+        join_msg = f"SYSTEM: {user_alias} se ha unido desde {addr}"
+        msg_queue.put(join_msg)
+        logger_service(lock, join_msg)
+
+        while True:
+            data = conn.recv(1024).decode('utf-8')
+            if not data or data == "/exit":
+                break
+            
+            full_msg = f"{user_alias}: {data}"
+            msg_queue.put(full_msg)
+            logger_service(lock, full_msg)
+    except Exception as e:
+        print(f" Error en cliente {addr}: {e}")
+    finally:
+        conn.close()
+
+def broadcaster(msg_queue, client_list):
+    """Proceso independiente que difunde mensajes a todos los sockets activos."""
+    while True:
+        msg = msg_queue.get() # Bloquea hasta que haya un mensaje
+        for client_conn in client_list:
+            try:
+                client_conn.send(f"\n{msg}\n> ".encode('utf-8'))
+            except:
+                client_list.remove(client_conn)
+
+if __name__ == "__main__":
+    # Inicialización de recursos IPC
+    manager = mp.Manager()
+    active_clients = manager.list()
+    message_bus = mp.Queue()
+    file_lock = mp.Lock()
+
+    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_sock.bind(('0.0.0.0', PORT))
+    server_sock.listen(10)
+
+    # Iniciar proceso de difusión global
+    mp.Process(target=broadcaster, args=(message_bus, active_clients), daemon=True).start()
+
+    print(f"[INFO] EPCS Server activo en puerto {PORT}. MIMD Mode ON.")
+
+    try:
+        while True:
+            conn, addr = server_sock.accept()
+            active_clients.append(conn)
+            # Spawning de proceso trabajador por cliente
+            p = mp.Process(target=client_handler, args=(conn, addr, message_bus, file_lock))
+            p.start()
+    except KeyboardInterrupt:
+        print("\n[INFO] Apagado grácil del servidor.")
+    finally:
+        server_sock.close()

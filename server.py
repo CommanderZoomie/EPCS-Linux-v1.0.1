@@ -57,6 +57,9 @@ def client_handler(conn, addr, msg_queue, lock):
     except Exception as e:
         print(f" Error en cliente {addr}: {e}")
     finally:
+        exit_msg = f"SYSTEM: {user_alias} has left the chat."
+        msg_queue.put(exit_msg)
+        logger_service(lock, exit_msg)
         conn.close()
 
 def broadcaster(msg_queue, client_list):
